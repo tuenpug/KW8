@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KW ANALYST V9.2 - Ultimate Refined</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --gradient-ai: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-real: linear-gradient(135deg, #2af598 0%, #009efd 100%);
+            --accent-green: #38b2ac;
+            --accent-red: #e53e3e;
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Poppins', 'Noto Sans TC', sans-serif; padding-bottom: 50px; }
+        .brand-header { text-align: center; padding: 30px 0; background: #fff; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .brand-title { font-weight: 800; font-size: 2rem; background: var(--gradient-ai); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px; }
+        
+        .app-card { background: var(--card-bg); border-radius: 20px; padding: 24px; border: none; box-shadow: 0 10px 25px rgba(118, 75, 162, 0.05); margin-bottom: 20px; transition: transform 0.2s; }
+        .app-card:hover { transform: translateY(-3px); }
+        
+        .btn-creative { border-radius: 12px; border: none; padding: 12px; font-weight: 600; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: all 0.3s; }
+        .btn-ai { background: var(--gradient-ai); }
+        .btn-backtest { background: var(--gradient-real); }
+        
+        .result-highlight { background: #f8faff; border-radius: 16px; padding: 20px; border: 1px dashed #cbd5e0; }
+        .highlight-label { font-size: 0.8rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
+        .highlight-value { font-size: 1.8rem; font-weight: 800; color: var(--text-main); }
+        
+        .trend-up { color: var(--accent-green); }
+        .trend-down { color: var(--accent-red); }
+
+        /* V9 邏輯解說專屬樣式 */
+        .logic-step { position: relative; padding-left: 30px; margin-bottom: 25px; border-left: 3px solid #e2e8f0; }
+        .logic-step.active { border-left-color: #667eea; }
+        .step-circle { position: absolute; left: -11px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 4px solid #e2e8f0; }
+        .logic-step.active .step-circle { border-color: #667eea; background: #667eea; }
+        .formula-box { background: #2d3748; color: #fff; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 0.9rem; margin-top: 10px; }
+        
+        /* Step 4 比例尺視覺化 */
+        .visual-scale { height: 50px; background: #f1f3f5; border-radius: 25px; position: relative; margin-top: 35px; }
+        .scale-center-line { position: absolute; left: 50%; height: 100%; border-left: 1px dashed #adb5bd; }
+        .scale-ref-label { position: absolute; left: 50%; top: -22px; font-size: 0.75rem; color: #aaa; transform: translateX(-50%); }
+        .scale-range-bar { position: absolute; top: 10px; bottom: 10px; border-radius: 15px; background: var(--gradient-ai); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; color: white; font-weight: bold; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(118, 75, 162, 0.3); }
+
+        #chart-container-live, #chart-container-bt { border-radius: 16px; overflow: hidden; }
+        .acc-tag { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .acc-high { background: #e6fffa; color: #2c7a7b; }
+    </style>
+</head>
+<body>
+
+<div class="brand-header">
+    <div class="brand-title"><i class="fas fa-layer-group"></i> KW ANALYST V9.2</div>
+    <div class="text-secondary small mt-1">Creative AI Trading Intelligence</div>
+</div>
+
+<div class="container" style="max-width: 800px;">
+    <div class="app-card">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="small text-secondary fw-bold ms-1">股票代號 (SYMBOL)</label>
+                <input type="text" id="symbol" class="form-control form-control-lg" value="CONL">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-creative btn-ai w-100" onclick="runAnalysis(false)"><i class="fas fa-bolt"></i> 開始分析 (Live)</button>
+            </div>
+            <div class="col-md-8">
+                <label class="small text-secondary fw-bold ms-1">回測日期 (BACKTEST DATE)</label>
+                <input type="date" id="test-date" class="form-control">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-creative btn-backtest w-100" onclick="runAnalysis(true)"><i class="fas fa-flask"></i> 回測測試 (BT)</button>
+            </div>
+        </div>
+        <div id="loading" class="text-center mt-3 text-primary fw-bold" style="display:none;"><i class="fas fa-spinner fa-spin"></i> AI 正在解構大數據慣性...</div>
+    </div>
+
+    <div id="panel-live" style="display: none;">
+        <div class="app-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-chart-line text-primary me-2"></i>未來預測摘要</h5>
+                <span class="badge bg-primary rounded-pill px-3 py-2" id="live-next-date">--</span>
+            </div>
+            <div class="result-highlight text-center">
+                <div class="row align-items-center">
+                    <div class="col-5 border-end">
+                        <div class="highlight-label">預測方向</div>
+                        <div id="live-dir-icon" class="mt-2" style="font-size: 2.5rem;"></div>
+                    </div>
+                    <div class="col-7">
+                        <div class="highlight-label">預估價格區間</div>
+                        <div class="highlight-value" id="live-range" style="color: #667eea;">--</div>
+                        <div class="small text-muted fw-bold" id="live-vol">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3 text-center">
+                <button class="btn btn-outline-dark rounded-pill px-4" onclick="showV9LogicPopup()"><i class="fas fa-search-plus me-1"></i> 詳細檢視 AI 演算步驟</button>
+            </div>
+        </div>
+
+        <div class="app-card">
+            <h6 class="fw-bold mb-3 text-secondary">前五日驗證對照表</h6>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="small text-muted"><tr><th>日期</th><th>真實走勢 (收盤)</th><th>AI 預測</th><th>準確度</th></tr></thead>
+                    <tbody id="live-history-body" class="small"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="app-card p-0 overflow-hidden"><div id="chart-live" style="height:380px;"></div></div>
+
+        <div class="app-card">
+            <h6 class="fw-bold mb-3 text-secondary">未來動能機率 (T+5 Momentum)</h6>
+            <div id="live-probs"></div>
+        </div>
+    </div>
+
+    <div id="panel-backtest" style="display: none;">
+        <div class="app-card">
+            <h5 class="fw-bold mb-4 text-dark"><i class="fas fa-history text-info me-2"></i>回測報告報告</h5>
+            <div class="row g-3">
+                <div class="col-6"><div class="p-3 rounded-4" style="background:#e6fffa; border:1px solid #b2f5ea;"><div class="highlight-label text-success">真實發生 (ACTUAL)</div><div class="h4 fw-bold text-dark mt-2" id="bt-real-range">--</div></div></div>
+                <div class="col-6"><div class="p-3 rounded-4" style="background:#f3e8ff; border:1px solid #d6bcfa;"><div class="highlight-label" style="color:#805ad5;">系統預測 (PREDICTED)</div><div class="h4 fw-bold text-dark mt-2" id="bt-pred-range">--</div></div></div>
+            </div>
+            <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                <div id="bt-accuracy" class="h2 fw-bold mb-0 text-primary">--%</div>
+                <button class="btn btn-outline-dark btn-sm rounded-pill px-3" onclick="showV9LogicPopup()">還原演算細節</button>
+            </div>
+        </div>
+        <div class="app-card p-3 bg-light border-start border-4 border-primary" id="bt-review">--</div>
+        <div class="app-card p-0 overflow-hidden"><div id="chart-bt" style="height:380px;"></div></div>
+    </div>
+</div>
+
+<div class="modal fade" id="logicModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0">
+            <div class="modal-header border-0 bg-light p-4"><h5 class="modal-title fw-bold">深度演算邏輯解析</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body p-4" id="modal-content-area"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_KEY = 'tDAhUDP8eul4oAJE88Fz2m1nlaKlFqzD';
+let latestResult = null;
+
+// --- V9 核心邏輯 (無損還原) ---
+function performV9Logic(allData, tIdx) {
+    const baseIdx = tIdx + 1;
+    if (baseIdx + 200 >= allData.length) return null;
+
+    const ref = allData[baseIdx];
+    const prev = allData[baseIdx+1];
+    const history5 = allData.slice(baseIdx, baseIdx + 5);
+    const avgVol = history5.reduce((s, x) => s + (x.h - x.l), 0) / 5;
+    const maxVolPast5 = Math.max(...history5.map(x => x.h - x.l));
+    
+    // 技術指標
+    const sma50 = allData.slice(baseIdx, baseIdx+50).reduce((s,x)=>s+x.c,0)/50;
+    let gains=0, losses=0;
+    for(let i=baseIdx; i<baseIdx+14; i++) {
+        let d = allData[i].c - allData[i+1].c;
+        d >= 0 ? gains += d : losses -= d;
+    }
+    const rsi = 100 - (100 / (1 + (gains/14)/(losses/14 || 1)));
+
+    // V9 權重修正
+    let bias = 0;
+    let biasLog = [];
+    if (rsi > 70) { bias -= 0.12; biasLog.push({type:'neg', t:`RSI (${rsi.toFixed(1)}) 過熱，向下修正位移`}); }
+    else if (rsi < 30) { bias += 0.12; biasLog.push({type:'pos', t:`RSI (${rsi.toFixed(1)}) 超賣，向上修正位移`}); }
+    else { biasLog.push({type:'neu', t:`RSI (${rsi.toFixed(1)}) 中性`}); }
+
+    if (ref.c > sma50) { bias += 0.05; biasLog.push({type:'pos', t:`股價於 50MA 上方，支撐看多`}); }
+    else { bias -= 0.05; biasLog.push({type:'neg', t:`股價於 50MA 下方，趨勢承壓`}); }
+
+    const inertia = 0.65;
+    let pH = ref.c + (avgVol * inertia) + (avgVol * bias);
+    let pL = ref.c - (avgVol * inertia) + (avgVol * bias);
+
+    // 風控機制
+    let constraint = null;
+    if ((pH - pL) > maxVolPast5 * 1.2) {
+        constraint = `波幅過大，已強制壓縮至歷史極值的 120%`;
+        const center = (pH + pL) / 2;
+        const half = (maxVolPast5 * 1.2) / 2;
+        pH = center + half; pL = center - half;
+    }
+
+    return { 
+        predH: pH, predL: pL, refClose: ref.c, avgVol, rsi, sma50, bias, biasLog, constraint,
+        direction: (pH + pL)/2 > ref.c ? 'up' : 'down',
+        actualTrend: ref.c > prev.c ? 'up' : 'down',
+        targetData: allData[tIdx] || null 
+    };
+}
+
+function showV9LogicPopup() {
+    const r = latestResult;
+    const area = document.getElementById('modal-content-area');
+    const offset = (( (r.predH + r.predL)/2 - r.refClose ) / r.avgVol * 100) + 50;
+
+    area.innerHTML = `
+        <div class="logic-step active"><div class="step-circle"></div><h6>Step 1: 基礎數據萃取</h6>
+        <div class="row g-2 small mt-2"><div class="col-4 bg-light p-2 rounded">基準價<br><b>$${r.refClose.toFixed(2)}</b></div>
+        <div class="col-4 bg-light p-2 rounded">均波幅<br><b>$${r.avgVol.toFixed(2)}</b></div>
+        <div class="col-4 bg-light p-2 rounded">RSI<br><b>${r.rsi.toFixed(1)}</b></div></div></div>
+        
+        <div class="logic-step active"><div class="step-circle"></div><h6>Step 2: 環境權重評估</h6>
+        <div class="ps-2 border-start border-3 mb-2">${r.biasLog.map(l => `<div class="small ${l.type==='pos'?'text-success':'text-danger'}"><i class="fas fa-check"></i> ${l.t}</div>`).join('')}</div></div>
+
+        <div class="logic-step active"><div class="step-circle"></div><h6>Step 3: 核心公式運算</h6>
+        <div class="formula-box">Vol_Base = ${r.avgVol.toFixed(2)} * 0.65 = ${(r.avgVol*0.65).toFixed(2)}<br>
+        High = $${r.predH.toFixed(2)} / Low = $${r.predL.toFixed(2)}</div>
+        ${r.constraint ? `<div class="alert alert-warning p-2 small mt-2">風控：${r.constraint}</div>` : ''}</div>
+
+        <div class="logic-step active mb-0"><div class="step-circle"></div><h6>Step 4: 視覺化校對</h6>
+        <div class="visual-scale"><div class="scale-ref-label">基準 $${r.refClose.toFixed(2)}</div><div class="scale-center-line"></div>
+        <div class="scale-range-bar" style="left:${offset-20}%; right:${100-offset-20}%;"><span>$${r.predL.toFixed(2)}</span><span>$${r.predH.toFixed(2)}</span></div></div></div>
+    `;
+    new bootstrap.Modal(document.getElementById('logicModal')).show();
+}
+
+async function runAnalysis(isBT) {
+    const sym = document.getElementById('symbol').value.toUpperCase();
+    const dateInput = document.getElementById('test-date').value;
+    const loading = document.getElementById('loading');
+    loading.style.display = 'block';
+
+    try {
+        const resp = await fetch(`https://api.polygon.io/v2/aggs/ticker/${sym}/range/1/day/2023-01-01/2026-12-31?adjusted=true&sort=desc&limit=500&apiKey=${API_KEY}`);
+        const d = await resp.json();
+        const all = d.results;
+
+        if(!isBT) {
+            latestResult = performV9Logic(all, -1);
+            renderLive(all, latestResult);
+        } else {
+            const idx = all.findIndex(x => new Date(x.t).toDateString() === new Date(dateInput).toDateString());
+            latestResult = performV9Logic(all, idx);
+            renderBT(all, latestResult);
+        }
+    } catch(e) { alert("數據錯誤"); }
+    finally { loading.style.display = 'none'; }
+}
+
+function renderLive(all, r) {
+    document.getElementById('panel-live').style.display = 'block';
+    document.getElementById('panel-backtest').style.display = 'none';
+    document.getElementById('live-next-date').innerText = new Date(all[0].t + 86400000).toLocaleDateString();
+    document.getElementById('live-range').innerText = `$${r.predL.toFixed(2)} - $${r.predH.toFixed(2)}`;
+    document.getElementById('live-dir-icon').innerHTML = r.direction==='up'?'<i class="fas fa-arrow-trend-up trend-up"></i>':'<i class="fas fa-arrow-trend-down trend-down"></i>';
+
+    const body = document.getElementById('live-history-body');
+    body.innerHTML = '';
+    for(let i=0; i<5; i++) {
+        const hr = performV9Logic(all, i);
+        const real = all[i];
+        const acc = (100 - (Math.abs(real.h - hr.predH)/real.h*100)).toFixed(1);
+        body.innerHTML += `<tr><td>${new Date(real.t).toLocaleDateString()}</td><td><i class="fas fa-caret-${hr.actualTrend} trend-${hr.actualTrend}"></i> $${real.c.toFixed(2)}</td><td class="text-primary">$${hr.predL.toFixed(1)}-$${hr.predH.toFixed(1)}</td><td><span class="acc-tag acc-high">${acc}%</span></td></tr>`;
+    }
+    drawChart('chart-live', all, r);
+    renderProbs(r);
+}
+
+function renderBT(all, r) {
+    document.getElementById('panel-backtest').style.display = 'block';
+    document.getElementById('panel-live').style.display = 'none';
+    document.getElementById('bt-real-range').innerText = `$${r.targetData.l.toFixed(2)}-$${r.targetData.h.toFixed(2)}`;
+    document.getElementById('bt-pred-range').innerText = `$${r.predL.toFixed(2)}-$${r.predH.toFixed(2)}`;
+    const acc = (100 - (Math.abs(r.targetData.h - r.predH)/r.targetData.h*100)).toFixed(1);
+    document.getElementById('bt-accuracy').innerText = acc + "%";
+    document.getElementById('bt-review').innerHTML = `<strong>AI 點評：</strong> 準確度 ${acc}%。${acc>70?'極度精準，市場完全符合技術慣性。':'走勢異常，市場出現了預期外的波動。'}`;
+    drawChart('chart-bt', all.slice(all.indexOf(r.targetData)), r);
+}
+
+function drawChart(cid, data, r) {
+    const el = document.getElementById(cid); el.innerHTML = '';
+    const chart = LightweightCharts.createChart(el, { layout: { textColor: '#718096' }, width: el.clientWidth, height: 380 });
+    const candles = chart.addCandlestickSeries({ upColor: '#38b2ac', downColor: '#e53e3e' });
+    candles.setData(data.slice(0, 100).map(d => ({ time: d.t/1000, open: d.o, high: d.h, low: d.l, close: d.c })).sort((a,b)=>a.time-b.time));
+    
+    const ma = (p, c) => {
+        const s = chart.addLineSeries({ color: c, lineWidth: 1 });
+        const res = [];
+        for(let i=0; i<=data.length-p; i++){
+            const a = data.slice(i, i+p).reduce((sum,x)=>sum+x.c, 0)/p;
+            res.push({time: data[i].t/1000, value: a});
+        }
+        s.setData(res.sort((a,b)=>a.time-b.time));
+    };
+    ma(50, '#2962ff'); ma(200, '#ff9800');
+    candles.createPriceLine({ price: r.predH, color: '#764ba2', lineStyle: 2, title: 'AI High' });
+    candles.createPriceLine({ price: r.predL, color: '#764ba2', lineStyle: 2, title: 'AI Low' });
+}
+
+function renderProbs(r) {
+    const score = 50 + (r.direction==='up'?15:0) + (r.refClose > r.sma50 ? 10:0);
+    const p3 = Math.min(95, score);
+    const item = (l, v) => `<div class="mb-3 small fw-bold d-flex justify-content-between"><span>${l}</span><span>${v.toFixed(0)}%</span></div><div class="progress" style="height:6px;"><div class="progress-bar" style="width:${v}%; background:var(--gradient-ai);"></div></div>`;
+    document.getElementById('live-probs').innerHTML = item('T+5 目標 +3%', p3) + item('T+5 目標 +5%', p3*0.8) + item('T+5 目標 +10%', p3*0.5);
+}
+</script>
+</body>
+</html>
